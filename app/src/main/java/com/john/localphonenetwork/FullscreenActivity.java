@@ -25,31 +25,12 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.Enumeration;
 
-/**
- * An example full-screen activity that shows and hides the system UI (i.e.
- * status bar and navigation/system bar) with user interaction.
- */
 public class FullscreenActivity extends AppCompatActivity {
 
     private TextView tvClientMsg,tvServerIP,tvServerPort;
     private final int SERVER_PORT = 8080; //Define the server port
-
-    /**
-     * Whether or not the system UI should be auto-hidden after
-     * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
-     */
     private static final boolean AUTO_HIDE = true;
-
-    /**
-     * If {@link #AUTO_HIDE} is set, the number of milliseconds to wait after
-     * user interaction before hiding the system UI.
-     */
     private static final int AUTO_HIDE_DELAY_MILLIS = 3000;
-
-    /**
-     * Some older devices needs a small delay between UI widget updates
-     * and a change of the status and navigation bar.
-     */
     private static final int UI_ANIMATION_DELAY = 300;
     private final Handler mHideHandler = new Handler();
     private View mContentView;
@@ -129,10 +110,12 @@ public class FullscreenActivity extends AppCompatActivity {
         findViewById(R.id.send_button).setOnTouchListener(mDelayHideTouchListener);
 
         tvClientMsg = (TextView) findViewById(R.id.textViewClientMessage);
+        tvServerIP = (TextView) findViewById(R.id.textViewServerIP);
         tvServerPort = (TextView) findViewById(R.id.textViewServerPort);
         tvServerPort.setText(Integer.toString(SERVER_PORT));
 
         getDeviceIpAddress();
+
         //New thread to listen to incoming connections
         new Thread(new Runnable() {
 
