@@ -23,11 +23,12 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.Enumeration;
 
 public class FullscreenActivity extends AppCompatActivity {
 
-    private TextView tvClientMsg,tvServerIP,tvServerPort;
+    private TextView tvServerMessage,tvServerIP,tvServerPort;
     private final int SERVER_PORT = 8080; //Define the server port
     private static final boolean AUTO_HIDE = true;
     private static final int AUTO_HIDE_DELAY_MILLIS = 3000;
@@ -109,38 +110,16 @@ public class FullscreenActivity extends AppCompatActivity {
         // while interacting with the UI.
         findViewById(R.id.send_button).setOnTouchListener(mDelayHideTouchListener);
 
-        tvClientMsg = (TextView) findViewById(R.id.textViewClientMessage);
+        tvServerMessage = (TextView) findViewById(R.id.textViewClientMessage);
         tvServerIP = (TextView) findViewById(R.id.textViewServerIP);
         tvServerPort = (TextView) findViewById(R.id.textViewServerPort);
         tvServerPort.setText(Integer.toString(SERVER_PORT));
 
         getDeviceIpAddress();
-
-        //New thread to listen to incoming connections
-        new Thread(new Runnable() {
-
-            @Override
-            public void run() {
-                try {
-                    //Create a server socket object and bind it to a port
-                    ServerSocket socServer = new ServerSocket(SERVER_PORT);
-                    //Create server side client socket reference
-                    Socket socClient = null;
-                    //Infinite loop will listen for client requests to connect
-                    while (true) {
-                        //Accept the client connection and hand over communication to server side client socket
-                        socClient = socServer.accept();
-                        //For each client new instance of AsyncTask will be created
-                        ServerAsyncTask serverAsyncTask = new ServerAsyncTask();
-                        //Start the AsyncTask execution
-                        //Accepted client socket object will pass as the parameter
-                        serverAsyncTask.execute(new Socket[] {socClient});
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
+        
+        ClientAsyncTask clientAST = new ClientAsyncTask();
+        //Pass the server ip, port and client message to the AsyncTask
+        clientAST.execute(new String[] { "192.168.1.1", "8080","Hello from client" });
     }
 
     @Override
@@ -221,39 +200,39 @@ public class FullscreenActivity extends AppCompatActivity {
         }
     }
 
-    class ServerAsyncTask extends AsyncTask<Socket, Void, String> {
-        //Background task which serve for the client
+    class ClientAsyncTask extends AsyncTask<String, Void, String> {
         @Override
-        protected String doInBackground(Socket... params) {
+        protected String doInBackground(String... params) {
             String result = null;
-            //Get the accepted socket object
-            Socket mySocket = params[0];
             try {
-                //Get the data input stream comming from the client
-                InputStream is = mySocket.getInputStream();
-                //Get the output stream to the client
-                PrintWriter out = new PrintWriter(
-                        mySocket.getOutputStream(), true);
-                //Write data to the data output stream
-                out.println("Hello from server");
-                //Buffer the data input stream
-                BufferedReader br;
-                br = new BufferedReader(
+                //Create a client socket and define internet address and the port of the server
+                Socket socket = new Socket(params[0],
+                        Integer.parseInt(params[1]));
+                //Get the input stream of the client socket
+                InputStream is = socket.getInputStream();
+                //Get the output stream of the client socket
+                PrintWriter out = new PrintWriter(socket.getOutputStream(),true);
+                //Write data to the output stream of the client socket
+                out.println(params[2]);
+                //Buffer the data coming from the input stream
+                BufferedReader br = new BufferedReader(
                         new InputStreamReader(is));
-                //Read the contents of the data buffer
+                //Read data in the input buffer
                 result = br.readLine();
-                //Close the client connection
-                mySocket.close();
+                //Close the client socket
+                socket.close();
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+            } catch (UnknownHostException e) {
+                e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
             }
             return result;
         }
-
         @Override
         protected void onPostExecute(String s) {
-            //After finishing the execution of background task data will be write the text view
-            tvClientMsg.setText(s);
+            tvServerMessage.setText(s);
         }
     }
 }
