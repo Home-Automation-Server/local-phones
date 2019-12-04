@@ -11,9 +11,12 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,8 +31,9 @@ import java.util.Enumeration;
 
 public class FullscreenActivity extends AppCompatActivity {
 
-    private TextView tvServerMessage,tvServerIP,tvServerPort;
-    private final int SERVER_PORT = 8080; //Define the server port
+    TextView textResponse;
+    EditText editTextAddress, editTextPort;
+    Button buttonConnect, buttonClear;
     private static final boolean AUTO_HIDE = true;
     private static final int AUTO_HIDE_DELAY_MILLIS = 3000;
     private static final int UI_ANIMATION_DELAY = 300;
@@ -108,27 +112,18 @@ public class FullscreenActivity extends AppCompatActivity {
         // Upon interacting with UI controls, delay any scheduled hide()
         // operations to prevent the jarring behavior of controls going away
         // while interacting with the UI.
-        findViewById(R.id.send_button).setOnTouchListener(mDelayHideTouchListener);
+        editTextAddress = (EditText)findViewById(R.id.addressEditText);
+        editTextPort = (EditText)findViewById(R.id.portEditText);
+        buttonConnect = (Button)findViewById(R.id.connectButton);
+        buttonClear = (Button)findViewById(R.id.clearButton);
+        textResponse = (TextView)findViewById(R.id.response);
 
-        tvServerMessage = (TextView) findViewById(R.id.textViewClientMessage);
-        tvServerIP = (TextView) findViewById(R.id.textViewServerIP);
-        tvServerPort = (TextView) findViewById(R.id.textViewServerPort);
-        tvServerPort.setText(Integer.toString(SERVER_PORT));
-
-        getDeviceIpAddress();
-        
-        ClientAsyncTask clientAST = new ClientAsyncTask();
-        //Pass the server ip, port and client message to the AsyncTask
-        clientAST.execute(new String[] { "192.168.1.1", "8080","Hello from client" });
+        //getDeviceIpAddress();
     }
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
-
-        // Trigger the initial hide() shortly after the activity has been
-        // created, to briefly hint to the user that UI controls
-        // are available.
         delayedHide(100);
     }
 
@@ -141,7 +136,6 @@ public class FullscreenActivity extends AppCompatActivity {
     }
 
     private void hide() {
-        // Hide UI first
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.hide();
@@ -149,7 +143,6 @@ public class FullscreenActivity extends AppCompatActivity {
         mControlsView.setVisibility(View.GONE);
         mVisible = false;
 
-        // Schedule a runnable to remove the status and navigation bar after a delay
         mHideHandler.removeCallbacks(mShowPart2Runnable);
         mHideHandler.postDelayed(mHidePart2Runnable, UI_ANIMATION_DELAY);
     }
@@ -176,6 +169,14 @@ public class FullscreenActivity extends AppCompatActivity {
     }
 
     public void sendButtonOnClick(View view) {
+        MyClientTask myClientTask = new MyClientTask(
+                editTextAddress.getText().toString(),
+                Integer.parseInt(editTextPort.getText().toString()));
+        myClientTask.execute();
+    }
+
+    public void clearButtonOnClick(View view){
+        textResponse.setText("");
     }
 
     public void getDeviceIpAddress() {
@@ -191,7 +192,7 @@ public class FullscreenActivity extends AppCompatActivity {
                     //Filter out loopback address and other irrelevant ip addresses
                     if (!inetAddress.isLoopbackAddress() && inetAddress.getAddress().length == 4) {
                         //Print the device ip address in to the text view
-                        tvServerIP.setText(inetAddress.getHostAddress());
+                        //tvServerIP.setText(inetAddress.getHostAddress());
                     }
                 }
             }
@@ -200,39 +201,47 @@ public class FullscreenActivity extends AppCompatActivity {
         }
     }
 
-    class ClientAsyncTask extends AsyncTask<String, Void, String> {
+    public class MyClientTask extends AsyncTask<Void, Void, Void> {
+
+        String dstAddress;
+        int dstPort;
+        String response;
+
+        MyClientTask(String addr, int port){
+            dstAddress = addr;
+            dstPort = port;
+        }
+
         @Override
-        protected String doInBackground(String... params) {
-            String result = null;
+        protected Void doInBackground(Void... arg0) {
+
             try {
-                //Create a client socket and define internet address and the port of the server
-                Socket socket = new Socket(params[0],
-                        Integer.parseInt(params[1]));
-                //Get the input stream of the client socket
-                InputStream is = socket.getInputStream();
-                //Get the output stream of the client socket
-                PrintWriter out = new PrintWriter(socket.getOutputStream(),true);
-                //Write data to the output stream of the client socket
-                out.println(params[2]);
-                //Buffer the data coming from the input stream
-                BufferedReader br = new BufferedReader(
-                        new InputStreamReader(is));
-                //Read data in the input buffer
-                result = br.readLine();
-                //Close the client socket
+                Socket socket = new Socket(dstAddress, dstPort);
+                InputStream inputStream = socket.getInputStream();
+                ByteArrayOutputStream byteArrayOutputStream =
+                        new ByteArrayOutputStream(1024);
+                byte[] buffer = new byte[1024];
+
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1){
+                    byteArrayOutputStream.write(buffer, 0, bytesRead);
+                }
+
                 socket.close();
-            } catch (NumberFormatException e) {
-                e.printStackTrace();
+                response = byteArrayOutputStream.toString("UTF-8");
+
             } catch (UnknownHostException e) {
                 e.printStackTrace();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            return result;
+            return null;
         }
+
         @Override
-        protected void onPostExecute(String s) {
-            tvServerMessage.setText(s);
+        protected void onPostExecute(Void result) {
+            textResponse.setText(response);
+            super.onPostExecute(result);
         }
     }
 }
